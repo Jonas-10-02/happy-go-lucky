@@ -6,6 +6,7 @@ import { checkOwnership } from "../Middleware/checkOwnership";
 import { IAppController } from "./IAppController";
 import { IEmailService } from "../Services/IEmailService";
 import { UserRole } from "../ValueTypes/UserRole";
+import { checkAdmin } from "../Middleware/checkAdmin";
 
 /**
  * Controller for handling user-related HTTP requests.
@@ -20,10 +21,10 @@ export class UserController implements IAppController {
    */
   init(app: Application): void {
     // User administration
-    app.get("/getUsers", this.getUsers.bind(this));
-    app.get("/user/status", this.getUsersByStatus.bind(this));
+    app.get("/getUsers", checkAdmin(this.db), this.getUsers.bind(this));
+    app.get("/user/status", checkAdmin(this.db), this.getUsersByStatus.bind(this));
     app.post("/user/status", checkOwnership(this.db), this.updateUserStatus.bind(this));
-    app.post("/user/status/all", this.updateAllConfirmedUsers.bind(this));
+    app.post("/user/status/all", checkAdmin(this.db), this.updateAllConfirmedUsers.bind(this));
 
     // User configuration
     app.post("/user/mail", this.changeEmail.bind(this));
@@ -33,12 +34,12 @@ export class UserController implements IAppController {
     app.post("/user/project/url", this.setUserProjectURL.bind(this));
     app.get("/user/project/url", this.getUserProjectURL.bind(this));
     app.get("/user/role", this.getUserRole.bind(this));
-    app.post("/user/role", this.updateUserRole.bind(this));
+    app.post("/user/role", checkAdmin(this.db), this.updateUserRole.bind(this));
   }
 
   async getUsers(req: Request, res: Response): Promise<void> {
     try {
-      const user = await this.db.all("SELECT * FROM users");
+      const user = await this.db.all("SELECT u.id, u.name, u.githubUsername, u.email, u.status, r.userRole FROM users AS u JOIN roles AS r ON u.roleId = r.id");
       if (user) {
         res.json(user);
       } else {
@@ -268,7 +269,7 @@ export class UserController implements IAppController {
     const { userEmail } = req.query;
 
     try {
-      const user = await this.db.get("SELECT role_name as userRole FROM users JOIN roles on users.userRole=roles.id  WHERE email = ?", [userEmail]);
+      const user = await this.db.get("SELECT r.userRole FROM users AS u JOIN roles AS r on u.roleId=r.id WHERE email = ?", [userEmail]);
       if (user) {
         res.json(user);
       } else {
@@ -290,7 +291,7 @@ export class UserController implements IAppController {
     try {
       const new_role: UserRole = new UserRole(role);
       // TODO? add state transitions and check for valid ones?
-      await this.db.run("UPDATE users SET userRole = ? WHERE email = ?", [new_role.getRoleId(), email]);
+      await this.db.run("UPDATE users SET roleId = ? WHERE email = ?", [new_role.getRoleId(), email]);
       res.status(200).json({ message: "User role updated successfully" });
     } catch (error) {
       console.error("Error during updating user role:", error);

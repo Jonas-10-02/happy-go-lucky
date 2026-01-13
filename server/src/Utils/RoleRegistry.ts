@@ -9,9 +9,9 @@ class RoleRegistry {
 
     async init(db: Database) {
         try {
-            const rows = await db.all<{ id: number, role_name: string }[]>(`SELECT id, role_name FROM roles`);
-            rows.forEach(({ id, role_name }) => {
-                this.keyToId.set(id, role_name as RoleKey);
+            const rows = await db.all<{ id: number, userRole: string }[]>(`SELECT id, userRole FROM roles`);
+            rows.forEach(({ id, userRole }) => {
+                this.keyToId.set(id, userRole as RoleKey);
             });
             this.initialized = true;
         } catch (error: any) {

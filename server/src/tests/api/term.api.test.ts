@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import request from 'supertest';
 import { Database } from 'sqlite';
-import { createTestDb, seedDatabase, getTermByName } from './helpers/testDb';
+import { createTestDb, seedDatabase, getTermByName, createDefaultUsers } from './helpers/testDb';
 import { validTerm } from './helpers/fixtures';
 import { Application } from 'express';
 import { createApp } from '../../createApp';
@@ -11,15 +11,20 @@ describe('Term API', () => {
   let db: Database;
   let app: Application;
 
+  let userToken: string;
+  let adminToken: string;
+
   beforeEach(async () => {
     db = await createTestDb();
+    await createDefaultUsers(db);
+    userToken = await generateUserToken(db);
+    adminToken = await generateAdminToken(db);
     app = createApp(db);
   });
 
   describe('POST /term (create term)', () => {
     it('should create a term with valid data as admin', async () => {
       await seedDatabase(db);
-      const adminToken = generateAdminToken();
       const term = { termName: 'SS2025', displayName: 'Summer 2025' };
 
       const response = await request(app)
@@ -40,7 +45,6 @@ describe('Term API', () => {
 
     it('should reject creation by non-admin user', async () => {
       await seedDatabase(db);
-      const userToken = generateUserToken();
       const term = validTerm();
 
       const response = await request(app)
@@ -68,7 +72,6 @@ describe('Term API', () => {
 
     it('should reject missing termName', async () => {
       await seedDatabase(db);
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/term')
@@ -82,7 +85,6 @@ describe('Term API', () => {
 
     it('should reject non-string termName', async () => {
       await seedDatabase(db);
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/term')
@@ -95,7 +97,6 @@ describe('Term API', () => {
 
     it('should allow creating term without displayName', async () => {
       await seedDatabase(db);
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/term')
@@ -108,7 +109,6 @@ describe('Term API', () => {
 
     it('should handle duplicate term names gracefully', async () => {
       await seedDatabase(db);
-      const adminToken = generateAdminToken();
       const term = { termName: 'SS2025', displayName: 'Summer 2025' };
 
       await request(app)
@@ -165,7 +165,6 @@ describe('Term API', () => {
 
     it('should return multiple terms', async () => {
       await seedDatabase(db);
-      const adminToken = generateAdminToken();
 
       await request(app)
         .post('/term')
@@ -195,7 +194,6 @@ describe('Term API', () => {
     });
 
     it('should add course with valid data as admin', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/termCourse')
@@ -211,7 +209,6 @@ describe('Term API', () => {
     });
 
     it('should reject creation by non-admin user', async () => {
-      const userToken = generateUserToken();
 
       const response = await request(app)
         .post('/termCourse')
@@ -223,7 +220,6 @@ describe('Term API', () => {
     });
 
     it('should reject missing termId', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/termCourse')
@@ -235,7 +231,6 @@ describe('Term API', () => {
     });
 
     it('should reject missing courseName', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/termCourse')
@@ -247,7 +242,6 @@ describe('Term API', () => {
     });
 
     it('should reject invalid termId format', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/termCourse')
@@ -259,7 +253,6 @@ describe('Term API', () => {
     });
 
     it('should reject non-existent termId', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/termCourse')
@@ -331,7 +324,6 @@ describe('Term API', () => {
     });
 
     it('should delete term without courses as admin', async () => {
-      const adminToken = generateAdminToken();
 
       await request(app)
         .post('/term')
@@ -354,7 +346,6 @@ describe('Term API', () => {
     });
 
     it('should reject deletion of term with courses as admin', async () => {
-      const adminToken = generateAdminToken();
 
       // Term ID 1 from seedDatabase has a course
       const response = await request(app)
@@ -370,7 +361,6 @@ describe('Term API', () => {
     });
 
     it('should reject invalid term ID as admin', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .delete('/term/not-a-number')
@@ -382,7 +372,6 @@ describe('Term API', () => {
     });
 
     it('should return 404 for non-existent term as admin', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .delete('/term/999')
@@ -394,8 +383,6 @@ describe('Term API', () => {
     });
 
     it('should reject deletion by non-admin user', async () => {
-      const userToken = generateUserToken();
-      const adminToken = generateAdminToken();
 
       await request(app)
         .post('/term')
@@ -418,7 +405,6 @@ describe('Term API', () => {
     });
 
     it('should reject deletion without authentication', async () => {
-      const adminToken = generateAdminToken();
 
       await request(app)
         .post('/term')
@@ -440,7 +426,6 @@ describe('Term API', () => {
     });
 
     it('should reject deletion with invalid token', async () => {
-      const adminToken = generateAdminToken();
 
       await request(app)
         .post('/term')

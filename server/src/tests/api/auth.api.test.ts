@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import request from 'supertest';
 import { Database } from 'sqlite';
 import { createTestDb, seedDatabase, getUserByEmail } from './helpers/testDb';
 import { validUser, invalidEmails } from './helpers/fixtures';
 import { Application } from 'express';
 import { createApp } from '../../createApp';
+import { generateAdminToken, generateUserToken } from './helpers/authHelpers';
 
 describe('Authentication API', () => {
   let db: Database;

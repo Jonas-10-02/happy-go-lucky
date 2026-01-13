@@ -42,7 +42,7 @@ export class User extends Visitor implements Serializable {
       this.email = null;
     }
     this.status = reader.readString("status") as string;
-    const role: RoleKey = roleRegistry.getRoleKey(reader.readNumber("userRole") as number);   // TODO: new constructor for more convenience
+    const role: RoleKey = roleRegistry.getRoleKey(reader.readNumber("roleId") as number);   // TODO: new constructor for more convenience
     this.role = new UserRole(role);
     this.password = reader.readString("password");
     this.resetPasswordToken = reader.readString("resetPasswordToken");
@@ -61,7 +61,7 @@ export class User extends Visitor implements Serializable {
       writer.writeString("email", this.email.toString());
     }
     writer.writeString("status", this.status);
-    writer.writeNumber("userRole", this.role.getRoleId());
+    writer.writeNumber("roleId", this.role.getRoleId());
     writer.writeString("password", this.password);
     writer.writeString("resetPasswordToken", this.resetPasswordToken);
     writer.writeNumber("resetPasswordExpire", this.resetPasswordExpire);

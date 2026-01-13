@@ -21,7 +21,7 @@ export async function initializeDB(filename: string, createAdmin = true) {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS roles (
       id INTEGER PRIMARY KEY UNIQUE,
-      role_name TEXT NOT NULL
+      userRole TEXT NOT NULL
     )
   `);
 
@@ -31,7 +31,7 @@ export async function initializeDB(filename: string, createAdmin = true) {
 
   // if roles are added default values need to be added in the RoleKey type [server/src/ValueTypes/UserRole.ts]
   await db.exec(`
-    INSERT INTO roles (id, role_name) VALUES 
+    INSERT INTO roles (id, userRole) VALUES 
     (1, 'USER'),
     (2, 'ADMIN')
   `);
@@ -48,8 +48,8 @@ export async function initializeDB(filename: string, createAdmin = true) {
       resetPasswordExpire INTEGER,
       confirmEmailToken TEXT,
       confirmEmailExpire INTEGER,
-      userRole INTEGER DEFAULT 1 NOT NULL,
-      FOREIGN KEY (userRole) REFERENCES roles(id)
+      roleId INTEGER DEFAULT 1 NOT NULL,
+      FOREIGN KEY (roleId) REFERENCES roles(id)
     )
   `);
 

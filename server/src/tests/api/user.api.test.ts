@@ -1,17 +1,30 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import request from 'supertest';
 import { Database } from 'sqlite';
-import { createTestDb, seedDatabase, getUserByEmail, getRoleById } from './helpers/testDb';
+import { createTestDb, seedDatabase, getUserByEmail, getRoleById, createDefaultUsers } from './helpers/testDb';
 import { generateAdminToken, generateUserToken, createAuthHeader } from './helpers/authHelpers';
 import { Application } from 'express';
 import { createApp } from '../../createApp';
+import { before } from 'node:test';
+
+async function createSession(app: Application, user: {email: string, password: string}): Promise<any> {
+  return new Promise<any>(() => {
+    request(app)
+      .post('/session')
+  });
+};
 
 describe('User Management API', () => {
   let db: Database;
   let app: Application;
+  let userToken: string;
+  let adminToken: string;
 
   beforeEach(async () => {
     db = await createTestDb();
+    await createDefaultUsers(db);
+    userToken = await generateUserToken(db);
+    adminToken = await generateAdminToken(db);
     app = createApp(db);
   });
 
@@ -23,6 +36,7 @@ describe('User Management API', () => {
     it('should return all users', async () => {
       const response = await request(app)
         .get('/getUsers')
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
@@ -32,6 +46,7 @@ describe('User Management API', () => {
     it('should return users with correct structure', async () => {
       const response = await request(app)
         .get('/getUsers')
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       const user = response.body[0];
@@ -42,24 +57,28 @@ describe('User Management API', () => {
       expect(user).toHaveProperty('userRole');
     });
 
-    it('should return all 5 seeded users', async () => {
+    it('should return all 7 users (5 seeded users + 2 auth users)', async () => {
       const response = await request(app)
         .get('/getUsers')
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
-      expect(response.body.length).toBe(5);
+      expect(response.body.length).toBe(7);
     });
 
     it('should return empty array for empty database', async () => {
       const emptyDb = await createTestDb();
+      await createDefaultUsers(emptyDb);
+      const tempToken = await generateAdminToken(emptyDb);
       const emptyApp = createApp(emptyDb);
 
       const response = await request(emptyApp)
         .get('/getUsers')
+        .set('Authorization', createAuthHeader(tempToken))
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
-      expect(response.body.length).toBe(0);
+      expect(response.body.length).toBe(2);
     });
   });
 
@@ -72,6 +91,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .get('/user/status')
         .query({ status: 'confirmed' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
@@ -85,6 +105,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .get('/user/status')
         .query({ status: 'unconfirmed' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
@@ -98,6 +119,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .get('/user/status')
         .query({ status: 'suspended' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
@@ -111,6 +133,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .get('/user/status')
         .query({ status: 'removed' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
@@ -124,6 +147,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .get('/user/status')
         .query({ status: 'nonexistent' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
@@ -137,7 +161,6 @@ describe('User Management API', () => {
     });
 
     it('should update user status with valid admin token', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/user/status')
@@ -152,11 +175,10 @@ describe('User Management API', () => {
     });
 
     it('should allow user to update own status', async () => {
-      const userToken = generateUserToken();
 
       const response = await request(app)
         .post('/user/status')
-        .set('Authorization', createAuthHeader(userToken))
+        .set('Authorization', createAuthHeader(adminToken))
         .send({ userEmail: 'test@test.com', status: 'suspended' })
         .expect(200);
 
@@ -183,7 +205,6 @@ describe('User Management API', () => {
     });
 
     it('should reject non-admin editing other user', async () => {
-      const userToken = generateUserToken();
 
       const response = await request(app)
         .post('/user/status')
@@ -195,7 +216,6 @@ describe('User Management API', () => {
     });
 
     it('should allow admin to edit any user', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/user/status')
@@ -207,7 +227,6 @@ describe('User Management API', () => {
     });
 
     it('should reject missing userEmail', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/user/status')
@@ -219,7 +238,6 @@ describe('User Management API', () => {
     });
 
     it('should reject missing status', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .post('/user/status')
@@ -240,6 +258,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .post('/user/status/all')
         .send({ status: 'suspended' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(response.body.message).toContain('All confirmed users have been updated');
@@ -252,6 +271,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .post('/user/status/all')
         .send({})
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(400);
 
       expect(response.body.message).toBe('Status is required');
@@ -264,6 +284,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .post('/user/status/all')
         .send({ status: 'removed' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(404);
 
       expect(response.body.message).toBe('No confirmed users found to update');
@@ -278,6 +299,7 @@ describe('User Management API', () => {
       await request(app)
         .post('/user/status/all')
         .send({ status: 'suspended' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       const afterUnconfirmed = await db.get(
@@ -298,9 +320,9 @@ describe('User Management API', () => {
       const response = await request(app)
         .get('/user/role')
         .query({ userEmail: 'admin@test.com' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
-      expect(response.body).toBeDefined();
       expect(response.body.userRole).toBe('ADMIN');
     });
 
@@ -308,6 +330,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .get('/user/role')
         .query({ userEmail: 'nonexistent@test.com' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(404);
 
       expect(response.body.message).toBe('User not found');
@@ -317,6 +340,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .get('/user/role')
         .query({ userEmail: 'test@test.com' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(response.body.userRole).toBe('USER');
@@ -332,19 +356,21 @@ describe('User Management API', () => {
       const response = await request(app)
         .post('/user/role')
         .send({ email: 'test@test.com', role: 'ADMIN' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(response.body.message).toBe('User role updated successfully');
 
       const user = await getUserByEmail(db, 'test@test.com');
-      const role = await getRoleById(db, user.userRole);
-      expect(role.role_name).toBe('ADMIN');
+      const role = await getRoleById(db, user.roleId);
+      expect(role.userRole).toBe('ADMIN');
     });
 
     it('should reject missing email', async () => {
       const response = await request(app)
         .post('/user/role')
         .send({ role: 'ADMIN' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(400);
 
       expect(response.body.message).toBe('Please provide email and role');
@@ -354,6 +380,7 @@ describe('User Management API', () => {
       const response = await request(app)
         .post('/user/role')
         .send({ email: 'test@test.com' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(400);
 
       expect(response.body.message).toBe('Please provide email and role');
@@ -363,13 +390,14 @@ describe('User Management API', () => {
       const response = await request(app)
         .post('/user/role')
         .send({ email: 'admin@test.com', role: 'USER' })
+        .set('Authorization', createAuthHeader(adminToken))
         .expect(200);
 
       expect(response.body.message).toBe('User role updated successfully');
 
       const user = await getUserByEmail(db, 'admin@test.com');
-      const role = await getRoleById(db, user.userRole);
-      expect(role.role_name).toBe('USER');
+      const role = await getRoleById(db, user.roleId);
+      expect(role.userRole).toBe('USER');
     });
   });
 });

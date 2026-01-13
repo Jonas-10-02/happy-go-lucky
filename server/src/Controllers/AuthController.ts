@@ -17,6 +17,8 @@ import { IEmailService } from "../Services/IEmailService";
 
 dotenv.config();
 
+const secret = process.env.JWT_SECRET || "your_jwt_secret";
+
 /**
  * Controller for handling authentication-related HTTP requests.
  * Manages user registration, login, password reset, and email confirmation.
@@ -171,7 +173,7 @@ export class AuthController implements IAppController {
         return;
       }
 
-      const token = jwt.sign({ id: user.getId() }, process.env.JWT_SECRET || "your_jwt_secret", {
+      const token = jwt.sign({ id: user.getId() }, secret, {
         expiresIn: "1h",
       });
       res.status(200).json({

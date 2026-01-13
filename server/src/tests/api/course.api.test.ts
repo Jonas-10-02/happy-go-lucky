@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import request from 'supertest';
 import { Database } from 'sqlite';
-import { createTestDb, seedDatabase, getCourseByName } from './helpers/testDb';
+import { createTestDb, seedDatabase, getCourseByName, createDefaultUsers } from './helpers/testDb';
 import { validCourse } from './helpers/fixtures';
 import { Application } from 'express';
 import { createApp } from '../../createApp';
@@ -11,8 +11,14 @@ describe('Course API', () => {
   let db: Database;
   let app: Application;
 
+  let userToken: string;
+  let adminToken: string;
+
   beforeEach(async () => {
     db = await createTestDb();
+    await createDefaultUsers(db);
+    userToken = await generateUserToken(db);
+    adminToken = await generateAdminToken(db);
     app = createApp(db);
   });
 
@@ -492,7 +498,6 @@ describe('Course API', () => {
     });
 
     it('should delete course without projects as admin', async () => {
-      const adminToken = generateAdminToken();
 
       // Create a course without projects
       await request(app)
@@ -516,7 +521,6 @@ describe('Course API', () => {
     });
 
     it('should delete course and its schedule as admin', async () => {
-      const adminToken = generateAdminToken();
 
       // Create a course with schedule but no projects
       await request(app)
@@ -554,7 +558,6 @@ describe('Course API', () => {
     });
 
     it('should reject deletion of course with projects as admin', async () => {
-      const adminToken = generateAdminToken();
 
       // Course ID 1 from seedDatabase has a project
       const response = await request(app)
@@ -571,7 +574,6 @@ describe('Course API', () => {
     });
 
     it('should reject invalid course ID as admin', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .delete('/course/not-a-number')
@@ -583,7 +585,6 @@ describe('Course API', () => {
     });
 
     it('should return 404 for non-existent course as admin', async () => {
-      const adminToken = generateAdminToken();
 
       const response = await request(app)
         .delete('/course/999')
@@ -595,7 +596,6 @@ describe('Course API', () => {
     });
 
     it('should reject deletion by non-admin user', async () => {
-      const userToken = generateUserToken();
 
       // Create a course without projects
       await request(app)
