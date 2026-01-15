@@ -5,6 +5,7 @@ import { DatabaseHelpers } from "../Models/DatabaseHelpers";
 import { checkOwnership } from "../Middleware/checkOwnership";
 import { IAppController } from "./IAppController";
 import { IEmailService } from "../Services/IEmailService";
+import { checkAdmin } from "../Middleware/checkAdmin";
 
 /**
  * Controller for handling user-related HTTP requests.
@@ -19,20 +20,20 @@ export class UserController implements IAppController {
    */
   init(app: Application): void {
     // User administration
-    app.get("/getUsers", this.getUsers.bind(this));
-    app.get("/user/status", this.getUsersByStatus.bind(this));
-    app.post("/user/status", checkOwnership(this.db), this.updateUserStatus.bind(this));
-    app.post("/user/status/all", this.updateAllConfirmedUsers.bind(this));
+    app.get("/getUsers", checkAdmin(this.db), this.getUsers.bind(this));
+    app.get("/user/status", checkAdmin(this.db), this.getUsersByStatus.bind(this));
+    app.post("/user/status", checkAdmin(this.db), this.updateUserStatus.bind(this));
+    app.post("/user/status/all", checkAdmin(this.db), this.updateAllConfirmedUsers.bind(this));
 
     // User configuration
-    app.post("/user/mail", this.changeEmail.bind(this));
-    app.post("/user/password/change", this.changePassword.bind(this));
-    app.post("/user/githubUsername", this.setUserGitHubUsername.bind(this));
-    app.get("/user/githubUsername", this.getUserGitHubUsername.bind(this));
-    app.post("/user/project/url", this.setUserProjectURL.bind(this));
-    app.get("/user/project/url", this.getUserProjectURL.bind(this));
-    app.get("/user/role", this.getUserRole.bind(this));
-    app.post("/user/role", this.updateUserRole.bind(this));
+    app.post("/user/mail", checkOwnership(this.db), this.changeEmail.bind(this));
+    app.post("/user/password/change", checkOwnership(this.db), this.changePassword.bind(this));
+    app.post("/user/githubUsername", checkOwnership(this.db), this.setUserGitHubUsername.bind(this));
+    app.get("/user/githubUsername", checkOwnership(this.db), this.getUserGitHubUsername.bind(this));
+    app.post("/user/project/url", checkOwnership(this.db), this.setUserProjectURL.bind(this));
+    app.get("/user/project/url", checkOwnership(this.db), this.getUserProjectURL.bind(this));
+    app.get("/user/role", checkOwnership(this.db), this.getUserRole.bind(this));
+    app.post("/user/role", checkAdmin(this.db), this.updateUserRole.bind(this));
   }
 
   async getUsers(req: Request, res: Response): Promise<void> {

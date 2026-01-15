@@ -33,7 +33,7 @@ class ApiClient {
       requiresAuth?: boolean;
     }
   ): Promise<T> {
-    const { params, body, requiresAuth = false } = options || {};
+    const { params, body, requiresAuth = true } = options || {};
 
     try {
       const url = new URL(`${this.baseUrl}${endpoint}`);
@@ -77,7 +77,7 @@ class ApiClient {
   async get<T>(
     endpoint: string,
     params?: Record<string, string | number>,
-    requiresAuth = false
+    requiresAuth = true
   ): Promise<T> {
     return this.request<T>("GET", endpoint, { params, requiresAuth });
   }
@@ -85,7 +85,7 @@ class ApiClient {
   async post<T>(
     endpoint: string,
     body: Record<string, string | number | boolean | string[]>,
-    requiresAuth = false
+    requiresAuth = true
   ): Promise<T> {
     return this.request<T>("POST", endpoint, { body, requiresAuth });
   }
@@ -93,12 +93,12 @@ class ApiClient {
   async put<T>(
     endpoint: string,
     body: Record<string, string | number | boolean | string[]>,
-    requiresAuth = false
+    requiresAuth = true
   ): Promise<T> {
     return this.request<T>("PUT", endpoint, { body, requiresAuth });
   }
 
-  async delete<T>(endpoint: string, requiresAuth = false): Promise<T> {
+  async delete<T>(endpoint: string, requiresAuth = true): Promise<T> {
     return this.request<T>("DELETE", endpoint, { requiresAuth });
   }
 }

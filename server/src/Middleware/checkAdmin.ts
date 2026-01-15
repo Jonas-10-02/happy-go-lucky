@@ -35,7 +35,7 @@ export function checkAdmin(db: Database) {
         res.status(403).json({ success: false, message: "Forbidden: Admin access required" });
         return;
       }
-    } catch {
+    } catch (err: unknown) {
       res.status(401).json({ success: false, message: "Invalid token" });
       return;
     }
